@@ -1,210 +1,557 @@
--- [[ СЕРВИСЫ ]]
-local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
-local TweenService = game:GetService("TweenService")
+-- ██╗    ██╗███████╗██████╗ ████████╗██╗   ██╗██████╗  █████╗ 
+-- ██║    ██║██╔════╝██╔══██╗╚══██╔══╝╚██╗ ██╔╝██╔══██╗██╔══██╗
+-- ██║ █╗ ██║█████╗  ██████╔╝   ██║    ╚████╔╝ ██████╔╝███████║
+-- ██║███╗██║██╔══╝  ██╔══██╗   ██║     ╚██╔╝  ██╔══██╗██╔══██║
+-- ╚███╔███╔╝███████╗██║  ██║   ██║      ██║   ██║  ██║██║  ██║
+--  ╚══╝╚══╝ ╚══════╝╚═╝  ╚═╝   ╚═╝      ╚═╝   ╚═╝  ╚═╝╚═╝  ╚═╝
+--                        CLIENT v1.0
+--          Made with ❤ | WertyraClient
 
-local player = Players.LocalPlayer
+-- ============================================================
+--  SERVICES
+-- ============================================================
+local Players        = game:GetService("Players")
+local RunService     = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local TweenService   = game:GetService("TweenService")
+local Workspace      = game:GetService("Workspace")
 
--- [[ ГЛАВНЫЙ ИНТЕРФЕЙС ]]
-local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "GalaxyMenuGui"
-screenGui.ResetOnSpawn = false
-screenGui.Parent = player:WaitForChild("PlayerGui")
+local LocalPlayer = Players.LocalPlayer
+local PlayerGui   = LocalPlayer:WaitForChild("PlayerGui")
+local Camera      = Workspace.CurrentCamera
+local Mouse       = LocalPlayer:GetMouse()
 
--- Главное окно
-local mainFrame = Instance.new("Frame")
-mainFrame.Size = UDim2.new(0, 500, 0, 320)
-mainFrame.Position = UDim2.new(0.5, -250, 0.4, -160)
-mainFrame.BackgroundColor3 = Color3.fromRGB(12, 10, 24) -- Глубокий космический синий
-mainFrame.BorderSizePixel = 0
-mainFrame.ClipsDescendants = true
-mainFrame.Active = true
-mainFrame.Draggable = true -- Окно можно перетаскивать мышкой/пальцем
-mainFrame.Parent = screenGui
+-- ============================================================
+--  CONFIG
+-- ============================================================
+local CONFIG = {
+    -- HUD
+    HudTitle      = "WertyraClient",
+    HudVersion    = "v1.0",
+    AccentColor   = Color3.fromRGB(120, 80, 255),   -- фиолетовый
+    AccentColor2  = Color3.fromRGB(200, 100, 255),  -- светло-фиолетовый
+    HudBg         = Color3.fromRGB(12, 10, 20),
+    HudBorder     = Color3.fromRGB(80, 50, 180),
 
-local uiCorner = Instance.new("UICorner")
-uiCorner.CornerRadius = UDim.new(0, 14)
-uiCorner.Parent = mainFrame
+    -- Click Effects
+    ClickColor    = Color3.fromRGB(180, 120, 255),
+    ClickDuration = 0.45,
+    ClickSize     = 60,
 
--- RGB Неоновая обводка
-local uiStroke = Instance.new("UIStroke")
-uiStroke.Thickness = 2
-uiStroke.Color = Color3.fromRGB(138, 43, 226)
-uiStroke.Parent = mainFrame
+    -- Esp / Visuals toggle (defaults)
+    EspEnabled    = false,
+    ClickVfx      = true,
+}
 
--- [[ АНИМАЦИЯ ГАЛАКТИКИ (ЗВЕЗДЫ) ]]
-local galaxyContainer = Instance.new("Frame")
-galaxyContainer.Size = UDim2.new(1, 0, 1, 0)
-galaxyContainer.BackgroundTransparency = 1
-galaxyContainer.ZIndex = 0
-galaxyContainer.Parent = mainFrame
+-- ============================================================
+--  ROOT SCREENGUI
+-- ============================================================
+local function makeGui()
+    local existing = PlayerGui:FindFirstChild("WertyraClientUI")
+    if existing then existing:Destroy() end
 
-local stars = {}
-for i = 1, 50 do
-    local star = Instance.new("Frame")
-    star.Size = UDim2.new(0, math.random(1, 3), 0, math.random(1, 3))
-    star.Position = UDim2.new(math.random(), 0, math.random(), 0)
-    star.BackgroundColor3 = Color3.fromRGB(220, 230, 255)
-    star.BackgroundTransparency = math.random(0.3, 0.8)
-    star.BorderSizePixel = 0
-    star.ZIndex = 1
-    star.Parent = galaxyContainer
-    
-    table.insert(stars, {obj = star, speed = math.random(5, 20) / 10000})
+    local ScreenGui = Instance.new("ScreenGui")
+    ScreenGui.Name           = "WertyraClientUI"
+    ScreenGui.ResetOnSpawn   = false
+    ScreenGui.ZIndexBehavior  = Enum.ZIndexBehavior.Sibling
+    ScreenGui.IgnoreGuiInset  = true
+    ScreenGui.Parent          = PlayerGui
+
+    return ScreenGui
 end
 
--- [[ БОКОВАЯ ПАНЕЛЬ НАВИГАЦИИ (TABS) ]]
-local sidebar = Instance.new("Frame")
-sidebar.Size = UDim2.new(0, 140, 1, -40)
-sidebar.Position = UDim2.new(0, 0, 0, 40)
-sidebar.BackgroundColor3 = Color3.fromRGB(8, 6, 16)
-sidebar.BackgroundTransparency = 0.3
-sidebar.BorderSizePixel = 0
-sidebar.ZIndex = 2
-sidebar.Parent = mainFrame
+local ScreenGui = makeGui()
 
--- Заголовок меню
-local titleLabel = Instance.new("TextLabel")
-titleLabel.Size = UDim2.new(1, 0, 0, 40)
-titleLabel.BackgroundTransparency = 1
-titleLabel.Text = "  🌌 GALAXY HUB"
-titleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-titleLabel.Font = Enum.Font.GothamBold
-titleLabel.TextSize = 16
-titleLabel.TextXAlignment = Enum.TextXAlignment.Left
-titleLabel.ZIndex = 3
-titleLabel.Parent = mainFrame
-
--- Разделительная линия для красоты
-local line = Instance.new("Frame")
-line.Size = UDim2.new(1, 0, 0, 1)
-line.Position = UDim2.new(0, 0, 0, 40)
-line.BackgroundColor3 = Color3.fromRGB(35, 30, 60)
-line.BorderSizePixel = 0
-line.ZIndex = 3
-line.Parent = mainFrame
-
--- Список кнопок (UI List Layout)
-local layout = Instance.new("UIListLayout")
-layout.Padding = UDim.new(0, 6)
-layout.SortOrder = Enum.SortOrder.LayoutOrder
-layout.Parent = sidebar
-
-local padding = Instance.new("UIPadding")
-padding.PaddingTop = UDim.new(0, 10)
-padding.PaddingLeft = UDim.new(0, 10)
-padding.Parent = sidebar
-
-
--- [[ ОСНОВНОЙ КОНТЕЙНЕР ДЛЯ СТРАНИЦ ]]
-local container = Instance.new("Frame")
-container.Size = UDim2.new(1, -150, 1, -50)
-container.Position = UDim2.new(0, 150, 0, 50)
-container.BackgroundTransparency = 1
-container.ZIndex = 2
-container.Parent = mainFrame
-
--- Таблица вкладок
-local tabs = {"Combat", "Visual", "Misc"}
-local pages = {}
-local currentTab = nil
-
--- Функция для создания страниц
-local function createPage(name)
-    local page = Instance.new("Frame")
-    page.Size = UDim2.new(1, 0, 1, 0)
-    page.BackgroundTransparency = 1
-    page.Visible = false
-    page.ZIndex = 2
-    page.Parent = container
-    
-    -- Заголовок внутри страницы
-    local pTitle = Instance.new("TextLabel")
-    pTitle.Size = UDim2.new(1, 0, 0, 20)
-    pTitle.BackgroundTransparency = 1
-    pTitle.Text = name:upper() .. " FUNCTIONS"
-    pTitle.TextColor3 = Color3.fromRGB(150, 140, 180)
-    pTitle.Font = Enum.Font.GothamBold
-    pTitle.TextSize = 13
-    pTitle.TextXAlignment = Enum.TextXAlignment.Left
-    pTitle.ZIndex = 3
-    pTitle.Parent = page
-    
-    -- Пример пустого чекбокса/кнопки для красоты
-    local placeholder = Instance.new("TextLabel")
-    placeholder.Size = UDim2.new(1, 0, 0, 100)
-    placeholder.Position = UDim2.new(0, 0, 0, 40)
-    placeholder.BackgroundTransparency = 1
-    placeholder.Text = "[ Ожидание добавления скриптов... ]"
-    placeholder.TextColor3 = Color3.fromRGB(80, 75, 100)
-    placeholder.Font = Enum.Font.GothamItalic
-    placeholder.TextSize = 14
-    placeholder.ZIndex = 3
-    placeholder.Parent = page
-
-    pages[name] = page
+-- ============================================================
+--  UTILITIES
+-- ============================================================
+local function tween(obj, props, dur, style, dir)
+    style = style or Enum.EasingStyle.Quart
+    dir   = dir   or Enum.EasingDirection.Out
+    local info = TweenInfo.new(dur, style, dir)
+    TweenService:Create(obj, info, props):Play()
 end
 
--- Переключение вкладок
-local function switchTab(tabName, button)
-    for _, p in pairs(pages) do p.Visible = false end
-    if pages[tabName] then pages[tabName].Visible = true end
-    
-    -- Сброс цвета остальных кнопок (визуальный отклик)
-    for _, child in ipairs(sidebar:GetChildren()) do
-        if child:IsA("TextButton") then
-            TweenService:Create(child, TweenInfo.new(0.2), {TextColor3 = Color3.fromRGB(160, 160, 170), BackgroundColor3 = Color3.fromRGB(15, 12, 28)}):Play()
-        end
-    end
-    -- Подсветка активной кнопки
-    TweenService:Create(button, TweenInfo.new(0.2), {TextColor3 = Color3.fromRGB(255, 255, 255), BackgroundColor3 = Color3.fromRGB(45, 30, 80)}):Play()
+local function shadow(parent, offset, trans)
+    local s = Instance.new("Frame")
+    s.Size            = UDim2.new(1, offset, 1, offset)
+    s.Position        = UDim2.new(0, offset/2, 0, offset/2)
+    s.BackgroundColor3 = Color3.fromRGB(0,0,0)
+    s.BackgroundTransparency = trans or 0.55
+    s.BorderSizePixel = 0
+    s.ZIndex          = parent.ZIndex - 1
+    s.Parent          = parent.Parent
+    Instance.new("UICorner", s).CornerRadius = UDim.new(0, 10)
+    return s
 end
 
--- Генерация кнопок меню
-for i, tabName in ipairs(tabs) do
-    createPage(tabName)
-    
-    local btn = Instance.new("TextButton")
-    btn.Size = UDim2.new(0, 120, 0, 32)
-    btn.BackgroundColor3 = Color3.fromRGB(15, 12, 28)
-    btn.Text = "  " .. tabName
-    btn.TextColor3 = Color3.fromRGB(160, 160, 170)
-    btn.Font = Enum.Font.GothamMedium
-    btn.TextSize = 13
-    btn.TextXAlignment = Enum.TextXAlignment.Left
-    btn.ZIndex = 3
-    btn.Parent = sidebar
-    
-    local bCorner = Instance.new("UICorner")
-    bCorner.CornerRadius = UDim.new(0, 6)
-    bCorner.Parent = btn
-    
-    btn.MouseButton1Click:Connect(function()
-        switchTab(tabName, btn)
-    end)
-    
-    -- Открываем первую вкладку по умолчанию
-    if i == 1 then
-        switchTab(tabName, btn)
-    end
-end
+-- ============================================================
+--  HUD  (top-left badge — style PulseVisuals → WertyraClient)
+-- ============================================================
+local HudFrame = Instance.new("Frame")
+HudFrame.Name             = "HUD"
+HudFrame.Size             = UDim2.new(0, 220, 0, 38)
+HudFrame.Position         = UDim2.new(0, 14, 0, 14)
+HudFrame.BackgroundColor3 = CONFIG.HudBg
+HudFrame.BackgroundTransparency = 0.1
+HudFrame.BorderSizePixel  = 0
+HudFrame.ZIndex           = 10
+HudFrame.Parent           = ScreenGui
+Instance.new("UICorner", HudFrame).CornerRadius = UDim.new(0, 20)
 
+-- Glowing border via UIStroke
+local hudStroke = Instance.new("UIStroke", HudFrame)
+hudStroke.Color       = CONFIG.AccentColor
+hudStroke.Thickness   = 1.5
+hudStroke.Transparency = 0.2
 
--- [[ ЦИКЛ АНИМАЦИИ (ЗВЕЗДЫ + ДИНАМИЧЕСКИЙ ХУД) ]]
-RunService.RenderStepped:Connect(function()
-    -- Бег звёзд влево
-    for _, starData in ipairs(stars) do
-        local star = starData.obj
-        local newX = star.Position.X.Scale - starData.speed
-        if newX < 0 then 
-            newX = 1
-            star.Position = UDim2.new(newX, 0, math.random(), 0)
-        else
-            star.Position = UDim2.new(newX, 0, star.Position.Y.Scale, 0)
-        end
-    end
-    
-    -- Плавное RGB переливание неона вокруг меню
-    local hue = (tick() % 6) / 6
-    uiStroke.Color = Color3.fromHSV(hue, 0.65, 0.9)
+-- Logo icon (W glyph)
+local LogoLabel = Instance.new("TextLabel")
+LogoLabel.Size             = UDim2.new(0, 28, 0, 28)
+LogoLabel.Position         = UDim2.new(0, 6, 0.5, -14)
+LogoLabel.BackgroundColor3 = CONFIG.AccentColor
+LogoLabel.BorderSizePixel  = 0
+LogoLabel.Text             = "W"
+LogoLabel.TextColor3       = Color3.new(1,1,1)
+LogoLabel.TextScaled       = true
+LogoLabel.Font             = Enum.Font.GothamBold
+LogoLabel.ZIndex           = 11
+LogoLabel.Parent           = HudFrame
+Instance.new("UICorner", LogoLabel).CornerRadius = UDim.new(0.5, 0)
+
+-- Title text
+local TitleLabel = Instance.new("TextLabel")
+TitleLabel.Size            = UDim2.new(0, 110, 1, 0)
+TitleLabel.Position        = UDim2.new(0, 40, 0, 0)
+TitleLabel.BackgroundTransparency = 1
+TitleLabel.Text            = CONFIG.HudTitle
+TitleLabel.TextColor3      = Color3.new(1,1,1)
+TitleLabel.TextScaled      = true
+TitleLabel.Font            = Enum.Font.GothamBold
+TitleLabel.TextXAlignment  = Enum.TextXAlignment.Left
+TitleLabel.ZIndex          = 11
+TitleLabel.Parent          = HudFrame
+
+-- Ping label
+local PingLabel = Instance.new("TextLabel")
+PingLabel.Size             = UDim2.new(0, 50, 1, 0)
+PingLabel.Position         = UDim2.new(0, 152, 0, 0)
+PingLabel.BackgroundTransparency = 1
+PingLabel.Text             = "0 ms"
+PingLabel.TextColor3       = CONFIG.AccentColor2
+PingLabel.TextScaled       = true
+PingLabel.Font             = Enum.Font.Gotham
+PingLabel.TextXAlignment   = Enum.TextXAlignment.Left
+PingLabel.ZIndex           = 11
+PingLabel.Parent           = HudFrame
+
+-- FPS label
+local FpsLabel = Instance.new("TextLabel")
+FpsLabel.Size              = UDim2.new(0, 40, 1, 0)
+FpsLabel.Position          = UDim2.new(1, -48, 0, 0)
+FpsLabel.BackgroundTransparency = 1
+FpsLabel.Text              = "60 FPS"
+FpsLabel.TextColor3        = Color3.fromRGB(200,200,200)
+FpsLabel.TextScaled        = true
+FpsLabel.Font              = Enum.Font.Gotham
+FpsLabel.TextXAlignment    = Enum.TextXAlignment.Left
+FpsLabel.ZIndex            = 11
+FpsLabel.Parent            = HudFrame
+
+-- Separator
+local Sep = Instance.new("Frame")
+Sep.Size             = UDim2.new(0, 1, 0.55, 0)
+Sep.Position         = UDim2.new(0, 148, 0.22, 0)
+Sep.BackgroundColor3 = Color3.fromRGB(100,70,200)
+Sep.BackgroundTransparency = 0.4
+Sep.BorderSizePixel  = 0
+Sep.ZIndex           = 11
+Sep.Parent           = HudFrame
+
+-- Animate HUD glow
+local glowDir = 1
+RunService.Heartbeat:Connect(function(dt)
+    hudStroke.Transparency = hudStroke.Transparency + glowDir * dt * 0.4
+    if hudStroke.Transparency >= 0.7 then glowDir = -1
+    elseif hudStroke.Transparency <= 0.05 then glowDir = 1 end
 end)
+
+-- ============================================================
+--  FPS & PING UPDATER
+-- ============================================================
+local fpsBuffer = {}
+local fpsTimer  = 0
+
+RunService.Heartbeat:Connect(function(dt)
+    -- FPS rolling average
+    table.insert(fpsBuffer, 1/dt)
+    if #fpsBuffer > 20 then table.remove(fpsBuffer, 1) end
+    local sum = 0
+    for _, v in ipairs(fpsBuffer) do sum = sum + v end
+    local fps = math.floor(sum/#fpsBuffer)
+    FpsLabel.Text = fps .. " FPS"
+
+    -- Color-code FPS
+    if fps >= 50 then
+        FpsLabel.TextColor3 = Color3.fromRGB(120,255,120)
+    elseif fps >= 25 then
+        FpsLabel.TextColor3 = Color3.fromRGB(255,210,60)
+    else
+        FpsLabel.TextColor3 = Color3.fromRGB(255,80,80)
+    end
+
+    -- Ping (Roblox internal stat)
+    fpsTimer = fpsTimer + dt
+    if fpsTimer >= 0.5 then
+        fpsTimer = 0
+        local ok, ping = pcall(function()
+            return math.floor(game:GetService("Stats").Network.ServerStatsItem["Data Ping"]:GetValue())
+        end)
+        PingLabel.Text = (ok and ping or 0) .. " ms"
+    end
+end)
+
+-- ============================================================
+--  MAIN MENU PANEL
+-- ============================================================
+local Panel = Instance.new("Frame")
+Panel.Name             = "Panel"
+Panel.Size             = UDim2.new(0, 340, 0, 440)
+Panel.Position         = UDim2.new(0.5, -170, 0.5, -220)
+Panel.BackgroundColor3 = CONFIG.HudBg
+Panel.BackgroundTransparency = 0.05
+Panel.BorderSizePixel  = 0
+Panel.Visible          = false
+Panel.ZIndex           = 20
+Panel.Parent           = ScreenGui
+Instance.new("UICorner", Panel).CornerRadius = UDim.new(0, 14)
+
+local panelStroke = Instance.new("UIStroke", Panel)
+panelStroke.Color     = CONFIG.AccentColor
+panelStroke.Thickness = 1.8
+
+-- Top bar
+local TopBar = Instance.new("Frame")
+TopBar.Size             = UDim2.new(1, 0, 0, 48)
+TopBar.BackgroundColor3 = CONFIG.AccentColor
+TopBar.BackgroundTransparency = 0.35
+TopBar.BorderSizePixel  = 0
+TopBar.ZIndex           = 21
+TopBar.Parent           = Panel
+local tbCorner = Instance.new("UICorner", TopBar)
+tbCorner.CornerRadius = UDim.new(0, 14)
+-- Cover bottom corners of top bar
+local tbFill = Instance.new("Frame")
+tbFill.Size             = UDim2.new(1, 0, 0.5, 0)
+tbFill.Position         = UDim2.new(0, 0, 0.5, 0)
+tbFill.BackgroundColor3 = CONFIG.AccentColor
+tbFill.BackgroundTransparency = 0.35
+tbFill.BorderSizePixel  = 0
+tbFill.ZIndex           = 21
+tbFill.Parent           = TopBar
+
+local PanelTitle = Instance.new("TextLabel")
+PanelTitle.Size             = UDim2.new(1, -50, 1, 0)
+PanelTitle.Position         = UDim2.new(0, 16, 0, 0)
+PanelTitle.BackgroundTransparency = 1
+PanelTitle.Text             = "⬡  " .. CONFIG.HudTitle .. "  " .. CONFIG.HudVersion
+PanelTitle.TextColor3       = Color3.new(1,1,1)
+PanelTitle.TextScaled       = true
+PanelTitle.Font             = Enum.Font.GothamBold
+PanelTitle.TextXAlignment   = Enum.TextXAlignment.Left
+PanelTitle.ZIndex           = 22
+PanelTitle.Parent           = TopBar
+
+-- Close button
+local CloseBtn = Instance.new("TextButton")
+CloseBtn.Size             = UDim2.new(0, 32, 0, 32)
+CloseBtn.Position         = UDim2.new(1, -40, 0.5, -16)
+CloseBtn.BackgroundColor3 = Color3.fromRGB(200, 60, 80)
+CloseBtn.BorderSizePixel  = 0
+CloseBtn.Text             = "✕"
+CloseBtn.TextColor3       = Color3.new(1,1,1)
+CloseBtn.TextScaled       = true
+CloseBtn.Font             = Enum.Font.GothamBold
+CloseBtn.ZIndex           = 22
+CloseBtn.Parent           = TopBar
+Instance.new("UICorner", CloseBtn).CornerRadius = UDim.new(0.5, 0)
+
+-- ============================================================
+--  TOGGLE BUTTON FACTORY
+-- ============================================================
+local function makeToggle(parent, yPos, labelText, defaultOn, callback)
+    local row = Instance.new("Frame")
+    row.Size             = UDim2.new(1, -24, 0, 44)
+    row.Position         = UDim2.new(0, 12, 0, yPos)
+    row.BackgroundColor3 = Color3.fromRGB(22, 18, 40)
+    row.BackgroundTransparency = 0.2
+    row.BorderSizePixel  = 0
+    row.ZIndex           = 23
+    row.Parent           = parent
+    Instance.new("UICorner", row).CornerRadius = UDim.new(0, 8)
+
+    local lbl = Instance.new("TextLabel")
+    lbl.Size            = UDim2.new(1, -70, 1, 0)
+    lbl.Position        = UDim2.new(0, 12, 0, 0)
+    lbl.BackgroundTransparency = 1
+    lbl.Text            = labelText
+    lbl.TextColor3      = Color3.new(1,1,1)
+    lbl.TextScaled      = true
+    lbl.Font            = Enum.Font.Gotham
+    lbl.TextXAlignment  = Enum.TextXAlignment.Left
+    lbl.ZIndex          = 24
+    lbl.Parent          = row
+
+    -- Track / pill
+    local track = Instance.new("Frame")
+    track.Size             = UDim2.new(0, 46, 0, 24)
+    track.Position         = UDim2.new(1, -56, 0.5, -12)
+    track.BackgroundColor3 = defaultOn and CONFIG.AccentColor or Color3.fromRGB(60,50,80)
+    track.BorderSizePixel  = 0
+    track.ZIndex           = 24
+    track.Parent           = row
+    Instance.new("UICorner", track).CornerRadius = UDim.new(0.5, 0)
+
+    local knob = Instance.new("Frame")
+    knob.Size             = UDim2.new(0, 18, 0, 18)
+    knob.Position         = defaultOn and UDim2.new(1, -21, 0.5, -9) or UDim2.new(0, 3, 0.5, -9)
+    knob.BackgroundColor3 = Color3.new(1,1,1)
+    knob.BorderSizePixel  = 0
+    knob.ZIndex           = 25
+    knob.Parent           = track
+    Instance.new("UICorner", knob).CornerRadius = UDim.new(0.5, 0)
+
+    local isOn = defaultOn
+    local btn = Instance.new("TextButton")
+    btn.Size             = UDim2.new(1, 0, 1, 0)
+    btn.BackgroundTransparency = 1
+    btn.Text             = ""
+    btn.ZIndex           = 26
+    btn.Parent           = row
+
+    btn.MouseButton1Click:Connect(function()
+        isOn = not isOn
+        tween(track, {BackgroundColor3 = isOn and CONFIG.AccentColor or Color3.fromRGB(60,50,80)}, 0.25)
+        tween(knob, {Position = isOn and UDim2.new(1,-21,0.5,-9) or UDim2.new(0,3,0.5,-9)}, 0.25)
+        if callback then callback(isOn) end
+    end)
+
+    return row
+end
+
+-- ============================================================
+--  BUILD PANEL CONTENT
+-- ============================================================
+local function buildPanel()
+    -- Section label
+    local function sectionLabel(parent, yPos, text)
+        local lbl = Instance.new("TextLabel")
+        lbl.Size            = UDim2.new(1, -24, 0, 22)
+        lbl.Position        = UDim2.new(0, 12, 0, yPos)
+        lbl.BackgroundTransparency = 1
+        lbl.Text            = text
+        lbl.TextColor3      = CONFIG.AccentColor2
+        lbl.TextScaled      = true
+        lbl.Font            = Enum.Font.GothamBold
+        lbl.TextXAlignment  = Enum.TextXAlignment.Left
+        lbl.ZIndex          = 23
+        lbl.Parent          = parent
+        return lbl
+    end
+
+    sectionLabel(Panel, 58, "  ✦  VISUALS")
+    makeToggle(Panel, 84, "Click VFX (Ripple)", CONFIG.ClickVfx, function(v)
+        CONFIG.ClickVfx = v
+    end)
+    makeToggle(Panel, 134, "Player ESP", CONFIG.EspEnabled, function(v)
+        CONFIG.EspEnabled = v
+    end)
+    makeToggle(Panel, 184, "Noclip", false, function(v)
+        -- noclip logic placeholder
+        LocalPlayer.Character and (function()
+            for _, p in ipairs(LocalPlayer.Character:GetDescendants()) do
+                if p:IsA("BasePart") then
+                    p.CanCollide = not v
+                end
+            end
+        end)()
+    end)
+
+    sectionLabel(Panel, 240, "  ✦  MOVEMENT")
+    makeToggle(Panel, 266, "Speed Boost (×2)", false, function(v)
+        local char = LocalPlayer.Character
+        if char then
+            local hum = char:FindFirstChildOfClass("Humanoid")
+            if hum then hum.WalkSpeed = v and 32 or 16 end
+        end
+    end)
+    makeToggle(Panel, 316, "High Jump", false, function(v)
+        local char = LocalPlayer.Character
+        if char then
+            local hum = char:FindFirstChildOfClass("Humanoid")
+            if hum then hum.JumpPower = v and 100 or 50 end
+        end
+    end)
+
+    sectionLabel(Panel, 372, "  ✦  MISC")
+    makeToggle(Panel, 398, "Anti AFK", true, function(v)
+        -- anti-afk fires virtual input already handled by common method
+    end)
+end
+
+buildPanel()
+
+-- Anti-AFK (simple VirtualUser approach)
+local VirtualUser = game:GetService("VirtualUser")
+LocalPlayer.Idled:Connect(function()
+    VirtualUser:Button2Down(Vector2.new(0,0), CFrame.new())
+    task.wait(1)
+    VirtualUser:Button2Up(Vector2.new(0,0), CFrame.new())
+end)
+
+-- ============================================================
+--  OPEN / CLOSE PANEL  (press RightShift)
+-- ============================================================
+CloseBtn.MouseButton1Click:Connect(function()
+    tween(Panel, {Size = UDim2.new(0, 340, 0, 0), BackgroundTransparency = 1}, 0.3, Enum.EasingStyle.Back, Enum.EasingDirection.In)
+    task.delay(0.3, function() Panel.Visible = false; Panel.Size = UDim2.new(0,340,0,440); Panel.BackgroundTransparency = 0.05 end)
+end)
+
+UserInputService.InputBegan:Connect(function(input, gp)
+    if gp then return end
+    if input.KeyCode == Enum.KeyCode.RightShift then
+        Panel.Visible = true
+        Panel.Size = UDim2.new(0, 340, 0, 0)
+        tween(Panel, {Size = UDim2.new(0, 340, 0, 440)}, 0.35, Enum.EasingStyle.Back)
+    end
+end)
+
+-- ============================================================
+--  CLICK VFX — ripple ring on mouse click
+-- ============================================================
+local function spawnRipple(x, y)
+    if not CONFIG.ClickVfx then return end
+
+    local container = ScreenGui
+
+    -- Ring
+    local ring = Instance.new("Frame")
+    ring.Size             = UDim2.new(0, CONFIG.ClickSize * 0.3, 0, CONFIG.ClickSize * 0.3)
+    ring.Position         = UDim2.new(0, x - CONFIG.ClickSize*0.15, 0, y - CONFIG.ClickSize*0.15)
+    ring.BackgroundTransparency = 1
+    ring.BorderSizePixel  = 0
+    ring.ZIndex           = 100
+    ring.Parent           = container
+    Instance.new("UICorner", ring).CornerRadius = UDim.new(0.5, 0)
+
+    local stroke = Instance.new("UIStroke", ring)
+    stroke.Color       = CONFIG.ClickColor
+    stroke.Thickness   = 2.5
+    stroke.Transparency = 0
+
+    -- Dot
+    local dot = Instance.new("Frame")
+    dot.Size             = UDim2.new(0, 8, 0, 8)
+    dot.Position         = UDim2.new(0, x - 4, 0, y - 4)
+    dot.BackgroundColor3 = CONFIG.ClickColor
+    dot.BorderSizePixel  = 0
+    dot.ZIndex           = 101
+    dot.Parent           = container
+    Instance.new("UICorner", dot).CornerRadius = UDim.new(0.5, 0)
+
+    local sz = CONFIG.ClickSize
+    local dur = CONFIG.ClickDuration
+
+    tween(ring, {
+        Size     = UDim2.new(0, sz, 0, sz),
+        Position = UDim2.new(0, x - sz/2, 0, y - sz/2),
+    }, dur, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+    tween(stroke, {Transparency = 1}, dur)
+    tween(dot, {BackgroundTransparency = 1, Size = UDim2.new(0,0,0,0),
+        Position = UDim2.new(0, x, 0, y)}, dur * 0.6)
+
+    game:GetService("Debris"):AddItem(ring, dur + 0.1)
+    game:GetService("Debris"):AddItem(dot,  dur + 0.1)
+end
+
+-- Second, bigger ring for double-pulse feel
+local function spawnRipple2(x, y)
+    if not CONFIG.ClickVfx then return end
+    task.delay(0.08, function()
+        local sz = CONFIG.ClickSize * 1.6
+        local dur = CONFIG.ClickDuration * 1.2
+        local ring2 = Instance.new("Frame")
+        ring2.Size             = UDim2.new(0, sz*0.15, 0, sz*0.15)
+        ring2.Position         = UDim2.new(0, x - sz*0.075, 0, y - sz*0.075)
+        ring2.BackgroundTransparency = 1
+        ring2.BorderSizePixel  = 0
+        ring2.ZIndex           = 99
+        ring2.Parent           = ScreenGui
+        Instance.new("UICorner", ring2).CornerRadius = UDim.new(0.5, 0)
+        local s2 = Instance.new("UIStroke", ring2)
+        s2.Color       = CONFIG.AccentColor2
+        s2.Thickness   = 1.5
+        s2.Transparency = 0.3
+        tween(ring2, {Size = UDim2.new(0,sz,0,sz), Position = UDim2.new(0,x-sz/2,0,y-sz/2)}, dur)
+        tween(s2, {Transparency = 1}, dur)
+        game:GetService("Debris"):AddItem(ring2, dur + 0.1)
+    end)
+end
+
+-- Hook mouse button
+UserInputService.InputBegan:Connect(function(input, gp)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        local pos = UserInputService:GetMouseLocation()
+        spawnRipple(pos.X, pos.Y)
+        spawnRipple2(pos.X, pos.Y)
+    end
+end)
+
+-- ============================================================
+--  WELCOME NOTIFICATION
+-- ============================================================
+local function notify(msg, duration)
+    duration = duration or 3
+    local n = Instance.new("Frame")
+    n.Size             = UDim2.new(0, 260, 0, 52)
+    n.Position         = UDim2.new(0.5, -130, 1, 10)
+    n.BackgroundColor3 = CONFIG.HudBg
+    n.BackgroundTransparency = 0.05
+    n.BorderSizePixel  = 0
+    n.ZIndex           = 200
+    n.Parent           = ScreenGui
+    Instance.new("UICorner", n).CornerRadius = UDim.new(0, 10)
+    local ns = Instance.new("UIStroke", n); ns.Color = CONFIG.AccentColor; ns.Thickness = 1.5
+
+    local bar = Instance.new("Frame")
+    bar.Size             = UDim2.new(0, 4, 0.7, 0)
+    bar.Position         = UDim2.new(0, 8, 0.15, 0)
+    bar.BackgroundColor3 = CONFIG.AccentColor
+    bar.BorderSizePixel  = 0; bar.ZIndex = 201
+    bar.Parent = n
+    Instance.new("UICorner", bar).CornerRadius = UDim.new(0,4)
+
+    local lbl = Instance.new("TextLabel")
+    lbl.Size            = UDim2.new(1,-20,1,0)
+    lbl.Position        = UDim2.new(0,18,0,0)
+    lbl.BackgroundTransparency = 1
+    lbl.Text            = msg
+    lbl.TextColor3      = Color3.new(1,1,1)
+    lbl.TextScaled      = true
+    lbl.Font            = Enum.Font.Gotham
+    lbl.TextXAlignment  = Enum.TextXAlignment.Left
+    lbl.ZIndex          = 201
+    lbl.Parent          = n
+
+    tween(n, {Position = UDim2.new(0.5,-130,1,-62)}, 0.4, Enum.EasingStyle.Back)
+    task.delay(duration, function()
+        tween(n, {Position = UDim2.new(0.5,-130,1,10)}, 0.35)
+        task.delay(0.4, function() n:Destroy() end)
+    end)
+end
+
+task.delay(0.5, function()
+    notify("⬡  WertyraClient loaded!  Press RightShift to open")
+end)
+
+print("[WertyraClient] Loaded successfully ✓")
