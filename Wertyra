@@ -1,0 +1,104 @@
+-- [[ СЕРВИСЫ ]]
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+
+local player = Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+local camera = workspace.CurrentCamera
+
+local isFlying = false
+local moveVector = Vector3.new(0, 0, 0)
+local bv, bg
+
+-- [[ GUI ИНТЕРФЕЙС ]]
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "GalaxyFlyGui"
+screenGui.Parent = player:WaitForChild("PlayerGui")
+
+-- [ МОБИЛЬНЫЙ ДЖОЙСТИК ]
+local joystickFrame = Instance.new("Frame")
+joystickFrame.Size = UDim2.new(0, 120, 0, 120)
+joystickFrame.Position = UDim2.new(0, 20, 0.6, 0)
+joystickFrame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+joystickFrame.BackgroundTransparency = 0.5
+joystickFrame.Visible = false -- Появится при включении полёта
+joystickFrame.Parent = screenGui
+
+local jCorner = Instance.new("UICorner")
+jCorner.CornerRadius = UDim.new(1, 0)
+jCorner.Parent = joystickFrame
+
+local stick = Instance.new("Frame")
+stick.Size = UDim2.new(0, 50, 0, 50)
+stick.Position = UDim2.new(0.5, -25, 0.5, -25)
+stick.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+stick.Parent = joystickFrame
+
+local sCorner = Instance.new("UICorner")
+sCorner.CornerRadius = UDim.new(1, 0)
+sCorner.Parent = stick
+
+-- [ КНОПКИ УПРАВЛЕНИЯ ]
+local flyBtn = Instance.new("TextButton")
+flyBtn.Size = UDim2.new(0, 150, 0, 50)
+flyBtn.Position = UDim2.new(0.5, -75, 0.8, 0)
+flyBtn.Text = "FLY: OFF"
+flyBtn.Parent = screenGui
+
+-- [[ ЛОГИКА ДЖОЙСТИКА ]]
+local dragging = false
+joystickFrame.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.Touch then dragging = true end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if dragging and input.UserInputType == Enum.UserInputType.Touch then
+        local delta = input.Position - joystickFrame.AbsolutePosition - Vector2.new(60, 60)
+        local magnitude = math.min((delta).Magnitude, 40)
+        local unit = delta.Unit
+        
+        stick.Position = UDim2.new(0.5, unit.X * magnitude - 25, 0.5, unit.Y * magnitude - 25)
+        
+        -- Вычисляем направление полёта
+        moveVector = Vector3.new(unit.X, 0, unit.Y)
+    end
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.Touch then
+        dragging = false
+        stick.Position = UDim2.new(0.5, -25, 0.5, -25)
+        moveVector = Vector3.new(0, 0, 0)
+    end
+end)
+
+-- [[ ЛОГИКА ПОЛЁТА ]]
+local function toggleFly()
+    isFlying = not isFlying
+    joystickFrame.Visible = isFlying
+    flyBtn.Text = isFlying and "FLY: ON" or "FLY: OFF"
+    
+    local hrp = character:FindFirstChild("HumanoidRootPart")
+    if not hrp then return end
+
+    if isFlying then
+        character.Humanoid.PlatformStand = true
+        bg = Instance.new("BodyGyro", hrp); bg.MaxTorque = Vector3.new(1,1,1)*1e6
+        bv = Instance.new("BodyVelocity", hrp); bv.MaxForce = Vector3.new(1,1,1)*1e6
+    else
+        character.Humanoid.PlatformStand = false
+        if bg then bg:Destroy() end
+        if bv then bv:Destroy() end
+    end
+end
+
+flyBtn.MouseButton1Click:Connect(toggleFly)
+
+RunService.Heartbeat:Connect(function()
+    if isFlying and bv and bg then
+        local direction = (camera.CFrame.LookVector * moveVector.Z) + (camera.CFrame.RightVector * moveVector.X)
+        bv.velocity = direction * 50
+        bg.CFrame = camera.CFrame
+    end
+end)
