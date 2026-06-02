@@ -1,104 +1,210 @@
 -- [[ СЕРВИСЫ ]]
 local Players = game:GetService("Players")
-local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
 
 local player = Players.LocalPlayer
-local character = player.Character or player.CharacterAdded:Wait()
-local camera = workspace.CurrentCamera
 
-local isFlying = false
-local moveVector = Vector3.new(0, 0, 0)
-local bv, bg
-
--- [[ GUI ИНТЕРФЕЙС ]]
+-- [[ ГЛАВНЫЙ ИНТЕРФЕЙС ]]
 local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "GalaxyFlyGui"
+screenGui.Name = "GalaxyMenuGui"
+screenGui.ResetOnSpawn = false
 screenGui.Parent = player:WaitForChild("PlayerGui")
 
--- [ МОБИЛЬНЫЙ ДЖОЙСТИК ]
-local joystickFrame = Instance.new("Frame")
-joystickFrame.Size = UDim2.new(0, 120, 0, 120)
-joystickFrame.Position = UDim2.new(0, 20, 0.6, 0)
-joystickFrame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-joystickFrame.BackgroundTransparency = 0.5
-joystickFrame.Visible = false -- Появится при включении полёта
-joystickFrame.Parent = screenGui
+-- Главное окно
+local mainFrame = Instance.new("Frame")
+mainFrame.Size = UDim2.new(0, 500, 0, 320)
+mainFrame.Position = UDim2.new(0.5, -250, 0.4, -160)
+mainFrame.BackgroundColor3 = Color3.fromRGB(12, 10, 24) -- Глубокий космический синий
+mainFrame.BorderSizePixel = 0
+mainFrame.ClipsDescendants = true
+mainFrame.Active = true
+mainFrame.Draggable = true -- Окно можно перетаскивать мышкой/пальцем
+mainFrame.Parent = screenGui
 
-local jCorner = Instance.new("UICorner")
-jCorner.CornerRadius = UDim.new(1, 0)
-jCorner.Parent = joystickFrame
+local uiCorner = Instance.new("UICorner")
+uiCorner.CornerRadius = UDim.new(0, 14)
+uiCorner.Parent = mainFrame
 
-local stick = Instance.new("Frame")
-stick.Size = UDim2.new(0, 50, 0, 50)
-stick.Position = UDim2.new(0.5, -25, 0.5, -25)
-stick.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-stick.Parent = joystickFrame
+-- RGB Неоновая обводка
+local uiStroke = Instance.new("UIStroke")
+uiStroke.Thickness = 2
+uiStroke.Color = Color3.fromRGB(138, 43, 226)
+uiStroke.Parent = mainFrame
 
-local sCorner = Instance.new("UICorner")
-sCorner.CornerRadius = UDim.new(1, 0)
-sCorner.Parent = stick
+-- [[ АНИМАЦИЯ ГАЛАКТИКИ (ЗВЕЗДЫ) ]]
+local galaxyContainer = Instance.new("Frame")
+galaxyContainer.Size = UDim2.new(1, 0, 1, 0)
+galaxyContainer.BackgroundTransparency = 1
+galaxyContainer.ZIndex = 0
+galaxyContainer.Parent = mainFrame
 
--- [ КНОПКИ УПРАВЛЕНИЯ ]
-local flyBtn = Instance.new("TextButton")
-flyBtn.Size = UDim2.new(0, 150, 0, 50)
-flyBtn.Position = UDim2.new(0.5, -75, 0.8, 0)
-flyBtn.Text = "FLY: OFF"
-flyBtn.Parent = screenGui
-
--- [[ ЛОГИКА ДЖОЙСТИКА ]]
-local dragging = false
-joystickFrame.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.Touch then dragging = true end
-end)
-
-UserInputService.InputChanged:Connect(function(input)
-    if dragging and input.UserInputType == Enum.UserInputType.Touch then
-        local delta = input.Position - joystickFrame.AbsolutePosition - Vector2.new(60, 60)
-        local magnitude = math.min((delta).Magnitude, 40)
-        local unit = delta.Unit
-        
-        stick.Position = UDim2.new(0.5, unit.X * magnitude - 25, 0.5, unit.Y * magnitude - 25)
-        
-        -- Вычисляем направление полёта
-        moveVector = Vector3.new(unit.X, 0, unit.Y)
-    end
-end)
-
-UserInputService.InputEnded:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.Touch then
-        dragging = false
-        stick.Position = UDim2.new(0.5, -25, 0.5, -25)
-        moveVector = Vector3.new(0, 0, 0)
-    end
-end)
-
--- [[ ЛОГИКА ПОЛЁТА ]]
-local function toggleFly()
-    isFlying = not isFlying
-    joystickFrame.Visible = isFlying
-    flyBtn.Text = isFlying and "FLY: ON" or "FLY: OFF"
+local stars = {}
+for i = 1, 50 do
+    local star = Instance.new("Frame")
+    star.Size = UDim2.new(0, math.random(1, 3), 0, math.random(1, 3))
+    star.Position = UDim2.new(math.random(), 0, math.random(), 0)
+    star.BackgroundColor3 = Color3.fromRGB(220, 230, 255)
+    star.BackgroundTransparency = math.random(0.3, 0.8)
+    star.BorderSizePixel = 0
+    star.ZIndex = 1
+    star.Parent = galaxyContainer
     
-    local hrp = character:FindFirstChild("HumanoidRootPart")
-    if not hrp then return end
+    table.insert(stars, {obj = star, speed = math.random(5, 20) / 10000})
+end
 
-    if isFlying then
-        character.Humanoid.PlatformStand = true
-        bg = Instance.new("BodyGyro", hrp); bg.MaxTorque = Vector3.new(1,1,1)*1e6
-        bv = Instance.new("BodyVelocity", hrp); bv.MaxForce = Vector3.new(1,1,1)*1e6
-    else
-        character.Humanoid.PlatformStand = false
-        if bg then bg:Destroy() end
-        if bv then bv:Destroy() end
+-- [[ БОКОВАЯ ПАНЕЛЬ НАВИГАЦИИ (TABS) ]]
+local sidebar = Instance.new("Frame")
+sidebar.Size = UDim2.new(0, 140, 1, -40)
+sidebar.Position = UDim2.new(0, 0, 0, 40)
+sidebar.BackgroundColor3 = Color3.fromRGB(8, 6, 16)
+sidebar.BackgroundTransparency = 0.3
+sidebar.BorderSizePixel = 0
+sidebar.ZIndex = 2
+sidebar.Parent = mainFrame
+
+-- Заголовок меню
+local titleLabel = Instance.new("TextLabel")
+titleLabel.Size = UDim2.new(1, 0, 0, 40)
+titleLabel.BackgroundTransparency = 1
+titleLabel.Text = "  🌌 GALAXY HUB"
+titleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+titleLabel.Font = Enum.Font.GothamBold
+titleLabel.TextSize = 16
+titleLabel.TextXAlignment = Enum.TextXAlignment.Left
+titleLabel.ZIndex = 3
+titleLabel.Parent = mainFrame
+
+-- Разделительная линия для красоты
+local line = Instance.new("Frame")
+line.Size = UDim2.new(1, 0, 0, 1)
+line.Position = UDim2.new(0, 0, 0, 40)
+line.BackgroundColor3 = Color3.fromRGB(35, 30, 60)
+line.BorderSizePixel = 0
+line.ZIndex = 3
+line.Parent = mainFrame
+
+-- Список кнопок (UI List Layout)
+local layout = Instance.new("UIListLayout")
+layout.Padding = UDim.new(0, 6)
+layout.SortOrder = Enum.SortOrder.LayoutOrder
+layout.Parent = sidebar
+
+local padding = Instance.new("UIPadding")
+padding.PaddingTop = UDim.new(0, 10)
+padding.PaddingLeft = UDim.new(0, 10)
+padding.Parent = sidebar
+
+
+-- [[ ОСНОВНОЙ КОНТЕЙНЕР ДЛЯ СТРАНИЦ ]]
+local container = Instance.new("Frame")
+container.Size = UDim2.new(1, -150, 1, -50)
+container.Position = UDim2.new(0, 150, 0, 50)
+container.BackgroundTransparency = 1
+container.ZIndex = 2
+container.Parent = mainFrame
+
+-- Таблица вкладок
+local tabs = {"Combat", "Visual", "Misc"}
+local pages = {}
+local currentTab = nil
+
+-- Функция для создания страниц
+local function createPage(name)
+    local page = Instance.new("Frame")
+    page.Size = UDim2.new(1, 0, 1, 0)
+    page.BackgroundTransparency = 1
+    page.Visible = false
+    page.ZIndex = 2
+    page.Parent = container
+    
+    -- Заголовок внутри страницы
+    local pTitle = Instance.new("TextLabel")
+    pTitle.Size = UDim2.new(1, 0, 0, 20)
+    pTitle.BackgroundTransparency = 1
+    pTitle.Text = name:upper() .. " FUNCTIONS"
+    pTitle.TextColor3 = Color3.fromRGB(150, 140, 180)
+    pTitle.Font = Enum.Font.GothamBold
+    pTitle.TextSize = 13
+    pTitle.TextXAlignment = Enum.TextXAlignment.Left
+    pTitle.ZIndex = 3
+    pTitle.Parent = page
+    
+    -- Пример пустого чекбокса/кнопки для красоты
+    local placeholder = Instance.new("TextLabel")
+    placeholder.Size = UDim2.new(1, 0, 0, 100)
+    placeholder.Position = UDim2.new(0, 0, 0, 40)
+    placeholder.BackgroundTransparency = 1
+    placeholder.Text = "[ Ожидание добавления скриптов... ]"
+    placeholder.TextColor3 = Color3.fromRGB(80, 75, 100)
+    placeholder.Font = Enum.Font.GothamItalic
+    placeholder.TextSize = 14
+    placeholder.ZIndex = 3
+    placeholder.Parent = page
+
+    pages[name] = page
+end
+
+-- Переключение вкладок
+local function switchTab(tabName, button)
+    for _, p in pairs(pages) do p.Visible = false end
+    if pages[tabName] then pages[tabName].Visible = true end
+    
+    -- Сброс цвета остальных кнопок (визуальный отклик)
+    for _, child in ipairs(sidebar:GetChildren()) do
+        if child:IsA("TextButton") then
+            TweenService:Create(child, TweenInfo.new(0.2), {TextColor3 = Color3.fromRGB(160, 160, 170), BackgroundColor3 = Color3.fromRGB(15, 12, 28)}):Play()
+        end
+    end
+    -- Подсветка активной кнопки
+    TweenService:Create(button, TweenInfo.new(0.2), {TextColor3 = Color3.fromRGB(255, 255, 255), BackgroundColor3 = Color3.fromRGB(45, 30, 80)}):Play()
+end
+
+-- Генерация кнопок меню
+for i, tabName in ipairs(tabs) do
+    createPage(tabName)
+    
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(0, 120, 0, 32)
+    btn.BackgroundColor3 = Color3.fromRGB(15, 12, 28)
+    btn.Text = "  " .. tabName
+    btn.TextColor3 = Color3.fromRGB(160, 160, 170)
+    btn.Font = Enum.Font.GothamMedium
+    btn.TextSize = 13
+    btn.TextXAlignment = Enum.TextXAlignment.Left
+    btn.ZIndex = 3
+    btn.Parent = sidebar
+    
+    local bCorner = Instance.new("UICorner")
+    bCorner.CornerRadius = UDim.new(0, 6)
+    bCorner.Parent = btn
+    
+    btn.MouseButton1Click:Connect(function()
+        switchTab(tabName, btn)
+    end)
+    
+    -- Открываем первую вкладку по умолчанию
+    if i == 1 then
+        switchTab(tabName, btn)
     end
 end
 
-flyBtn.MouseButton1Click:Connect(toggleFly)
 
-RunService.Heartbeat:Connect(function()
-    if isFlying and bv and bg then
-        local direction = (camera.CFrame.LookVector * moveVector.Z) + (camera.CFrame.RightVector * moveVector.X)
-        bv.velocity = direction * 50
-        bg.CFrame = camera.CFrame
+-- [[ ЦИКЛ АНИМАЦИИ (ЗВЕЗДЫ + ДИНАМИЧЕСКИЙ ХУД) ]]
+RunService.RenderStepped:Connect(function()
+    -- Бег звёзд влево
+    for _, starData in ipairs(stars) do
+        local star = starData.obj
+        local newX = star.Position.X.Scale - starData.speed
+        if newX < 0 then 
+            newX = 1
+            star.Position = UDim2.new(newX, 0, math.random(), 0)
+        else
+            star.Position = UDim2.new(newX, 0, star.Position.Y.Scale, 0)
+        end
     end
+    
+    -- Плавное RGB переливание неона вокруг меню
+    local hue = (tick() % 6) / 6
+    uiStroke.Color = Color3.fromHSV(hue, 0.65, 0.9)
 end)
